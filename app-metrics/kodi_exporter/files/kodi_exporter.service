@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus Kodi Exporter
+Documentation=https://github.com/nlamirault/kodi_exporter/
+After=network-online.target
+
+[Service]
+User=kodi_exporter
+Restart=on-failure
+RestartSec=10
+ExecStart=/usr/bin/kodi_exporter -kodi.server 192.168.1.153 -kodi.port 8081 -kodi.username kodi -kodi.password qwe1asd2
+
+[Install]
+WantedBy=multi-user.target

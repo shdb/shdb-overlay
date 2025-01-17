@@ -1,0 +1,2 @@
+# arguments for prometheus snmp exporter
+command_args="-kodi.server 192.168.1.153 -kodi.port 8081"

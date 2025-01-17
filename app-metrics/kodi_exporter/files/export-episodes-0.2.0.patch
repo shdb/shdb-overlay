@@ -1,0 +1,99 @@
+From 64990d0f70a31e1cdea9299b320bc434bcfb94c4 Mon Sep 17 00:00:00 2001
+From: shdb <shadowblade@gmx.ch>
+Date: Wed, 13 Mar 2019 22:24:32 +0100
+Subject: [PATCH] export episodes count
+
+---
+ kodi/client.go   |  8 ++++++++
+ kodi/data.go     | 15 +++++++++++++++
+ kodi_exporter.go | 18 ++++++++++++++++++
+ 3 files changed, 41 insertions(+)
+
+diff --git a/kodi/client.go b/kodi/client.go
+index 97b1454..856cd67 100644
+--- a/kodi/client.go
++++ b/kodi/client.go
+@@ -149,6 +149,14 @@ func (k *Client) VideoGetTVShows() (*VideoGetTVShowsResponse, error) {
+ 	return resp, err
+ }
+ 
++// VideoGetEpisodes make a RPC call to retrieve all episodes
++func (k *Client) VideoGetEpisodes() (*VideoGetEpisodesResponse, error) {
++	resp := &VideoGetEpisodesResponse{}
++	params := map[string]interface{}{}
++	err := k.rpc("VideoLibrary.GetEpisodes", params, resp)
++	return resp, err
++}
++
+ func (k *Client) videoGetGenres(videotype string) (*VideoGetGenresResponse, error) {
+ 	resp := &VideoGetGenresResponse{}
+ 	params := map[string]interface{}{
+diff --git a/kodi/data.go b/kodi/data.go
+index fb7457c..a8fd728 100644
+--- a/kodi/data.go
++++ b/kodi/data.go
+@@ -105,6 +105,21 @@ type VideoGetTVShowsResponse struct {
+ 	Result TVShowsResponse `json:"result,omitempty"`
+ }
+ 
++type Episode struct {
++	EpisodeID int  `json:"episodeid"`
++	Label   string `json:"label,omitempty"`
++}
++
++type EpisodesResponse struct {
++	Movies []Episode           `json:"episodes,omitempty"`
++	Limits *ListLimitsReturned `json:"limits,omitempty"`
++}
++
++type VideoGetEpisodesResponse struct {
++	ResponseBase
++	Result TVShowsResponse `json:"result,omitempty"`
++}
++
+ type Movie struct {
+ 	MovieID int    `json:"movieid"`
+ 	Label   string `json:"label,omitempty"`
+diff --git a/kodi_exporter.go b/kodi_exporter.go
+index d5cd43e..953315f 100644
+--- a/kodi_exporter.go
++++ b/kodi_exporter.go
+@@ -64,6 +64,11 @@ var (
+ 		"How many TV shows are in the video library.",
+ 		nil, nil,
+ 	)
++	episodeCount = prometheus.NewDesc(
++		prometheus.BuildFQName(namespace, "", "video_episodes"),
++		"How many episodes are in the video library.",
++		nil, nil,
++	)
+ 	// movieGenres = prometheus.NewDesc(
+ 	// 	prometheus.BuildFQName(namespace, "", "video_movies_genres"),
+ 	// 	"Genres for movies in the video library.",
+@@ -125,6 +130,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
+ 	ch <- artistCount
+ 	ch <- albumCount
+ 	ch <- songCount
++	ch <- episodeCount
+ 	ch <- movieCount
+ 	ch <- tvshowCount
+ 	// ch <- movieGenres
+@@ -223,6 +229,18 @@ func (e *Exporter) collectVideoMetrics(ch chan<- prometheus.Metric) {
+ 		log.Infof("TV Shows: %d", size)
+ 	}
+ 
++	episodesResp, err := e.Client.VideoGetEpisodes()
++	if err != nil || episodesResp.Error != nil {
++		// FIXME: How should we handle a partial failure like this?
++	} else {
++		//size := float64(len(episodesResp.Result.Episodes))
++		size := float64(episodesResp.Result.Limits.Total)
++		ch <- prometheus.MustNewConstMetric(
++			episodeCount, prometheus.GaugeValue, size,
++		)
++		log.Infof("Episodes: %d", size)
++	}
++
+ 	moviesGenresResp, err := e.Client.VideoGetMoviesGenres()
+ 	if err != nil || moviesGenresResp.Error != nil {
+ 		// FIXME: How should we handle a partial failure like this?
