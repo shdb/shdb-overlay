@@ -1,0 +1,2 @@
+# arguments for prometheus snmp exporter
+command_args="--config.file=/etc/ipmi_exporter/ipmi.yml"
